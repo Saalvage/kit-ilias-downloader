@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         KIT-ILIAS Downloader
-// @version      1.0.0
+// @version      1.1.0
 // @description  Adds a download button to videos that don't have one.
 // @author       Salvage
 // @namespace    https://github.com/Saalvage/kit-ilias-downloader
@@ -8,7 +8,7 @@
 // @downloadURL  https://raw.githubusercontent.com/Saalvage/kit-ilias-downloader/main/script.user.js
 // @supportURL   https://github.com/Saalvage/kit-ilias-downloader/issues/
 // @license      MIT
-// @include      /^https:\/\/ilias\.studium\.kit\.edu\/ilias\.php\?ref_id=\d+&cmdClass=xocteventgui.*
+// @include      /^https:\/\/ilias\.studium\.kit\.edu\/ilias\.php.*cmdClass=xocteventgui.*
 // @icon         https://www.kit.edu/favicon.ico
 // @grant        none
 // @run-at       document-idle
@@ -31,19 +31,30 @@ window.__ilias_download = function(playLink) {
         });
 }
 
+function addDownloads(rows, styleClass, getButtons) {
+    // Check if download button is already there
+    if (rows.length > 0) {
+        const buttons = getButtons(rows[0]);
+        if (buttons.length === 2 && buttons[1].text === "Download") { return; }
+    }
+    for (const entry of rows) {
+        const buttons = getButtons(entry);
+        buttons.insertAdjacentHTML("beforeEnd", `<a class="${styleClass}" onclick=__ilias_download("${buttons.children[0].href}");>Download</a>`);
+    }
+}
+
+const waiter = document.getElementById("xoct_waiter");
+
 new MutationObserver((mutList, observer) => {
     // Fully loaded. This is atrocious, but I didn't find a better way!
-    if (document.getElementById("xoct_waiter").attributes.style.value === "display: none;") {
-        const rows = document.getElementsByClassName("table table-striped fullwidth")[0].tBodies[0].rows;
-        // Check if download button is already there
-        if (rows.length > 0) {
-            const buttons = rows[0].cells[1].children[0].children;
-            if (buttons.length === 2 && buttons[1].text === "Download") { return; }
-        }
-        for (const r of rows) {
-            const buttons = r.cells[1].children[0];
-            buttons.insertAdjacentHTML("beforeEnd", `<p class="btn btn-info" onclick=__ilias_download("${buttons.children[0].href}");>Download</p>`);
+    if (waiter.attributes.style.value === "display: none;") {
+        const tables = document.getElementsByClassName("table table-striped fullwidth");
+        if (tables.length === 0) {
+            // Probably uses the tiled layout
+            addDownloads(document.getElementById("xoct_tile_container").children, "btn btn-default", entry => entry.getElementsByClassName("xoct_event_buttons")[0]);
+        } else {
+            addDownloads(tables[0].tBodies[0].rows, "btn btn-info", entry => entry.getElementsByClassName("btn-group-vertical")[0]);
         }
         observer.disconnect();
     }
-}).observe(document.getElementById("xoct_waiter"), { attributes: true });
+}).observe(waiter, { attributes: true });
