@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         KIT-ILIAS Downloader
-// @version      1.1.0
+// @version      1.1.1
 // @description  Adds a download button to videos that don't have one.
 // @author       Salvage
 // @namespace    https://github.com/Saalvage/kit-ilias-downloader
@@ -8,7 +8,7 @@
 // @downloadURL  https://raw.githubusercontent.com/Saalvage/kit-ilias-downloader/main/script.user.js
 // @supportURL   https://github.com/Saalvage/kit-ilias-downloader/issues/
 // @license      MIT
-// @include      /^https:\/\/ilias\.studium\.kit\.edu\/ilias\.php.*cmdClass=xocteventgui.*
+// @include      /^https:\/\/ilias\.studium\.kit\.edu\/ilias\.php.*cmdClass=xocteventgui.*/
 // @icon         https://www.kit.edu/favicon.ico
 // @grant        none
 // @run-at       document-idle
@@ -16,12 +16,14 @@
 
 'use strict';
 
-window.__ilias_download = function(playLink) {
+let script = document.createElement("script");
+script.textContent =
+`function __iliasDownload(playLink) {
     fetch(playLink)
         .then(response => response.text())
         .then(cnt => {
-            const pos = cnt.indexOf("https:\\/\\/oc-delivery.bibliothek.kit.edu\\/staticfiles\\/mh_default_org\\/api\\/");
-            const endPos = cnt.indexOf(`","mimetype":"video\\/mp4"`, pos);
+            const pos = cnt.indexOf("https:\\\\/\\\\/oc-delivery.bibliothek.kit.edu\\\\/staticfiles\\\\/mh_default_org\\\\/api\\\\/");
+            const endPos = cnt.indexOf(\`","mimetype":"video\\\\/mp4"\`, pos);
             // Actually download
             window.location = cnt.substr(pos, endPos - pos);
         })
@@ -29,7 +31,8 @@ window.__ilias_download = function(playLink) {
             console.log(err);
             alert("Download failed! See console for details!");
         });
-}
+}`
+document.head.appendChild(script);
 
 function addDownloads(rows, styleClass, getButtons) {
     // Check if download button is already there
@@ -39,22 +42,39 @@ function addDownloads(rows, styleClass, getButtons) {
     }
     for (const entry of rows) {
         const buttons = getButtons(entry);
-        buttons.insertAdjacentHTML("beforeEnd", `<a class="${styleClass}" onclick=__ilias_download("${buttons.children[0].href}");>Download</a>`);
+        buttons.insertAdjacentHTML("beforeEnd", `<a class="${styleClass}" onclick=__iliasDownload("${buttons.children[0].href}");>Download</a>`);
     }
 }
 
-const waiter = document.getElementById("xoct_waiter");
-
-new MutationObserver((mutList, observer) => {
-    // Fully loaded. This is atrocious, but I didn't find a better way!
-    if (waiter.attributes.style.value === "display: none;") {
-        const tables = document.getElementsByClassName("table table-striped fullwidth");
-        if (tables.length === 0) {
-            // Probably uses the tiled layout
-            addDownloads(document.getElementById("xoct_tile_container").children, "btn btn-default", entry => entry.getElementsByClassName("xoct_event_buttons")[0]);
-        } else {
-            addDownloads(tables[0].tBodies[0].rows, "btn btn-info", entry => entry.getElementsByClassName("btn-group-vertical")[0]);
+function observeLoader(waiter) {
+    new MutationObserver((mutList, observer) => {
+        // Fully loaded. This is atrocious, but I didn't find a better way!
+        if (waiter.attributes.style.value === "display: none;") {
+            const tables = document.getElementsByClassName("table table-striped fullwidth");
+            if (tables.length === 0) {
+                // Probably uses the tiled layout
+                addDownloads(document.getElementById("xoct_tile_container").children, "btn btn-default", entry => entry.getElementsByClassName("xoct_event_buttons")[0]);
+            } else {
+                addDownloads(tables[0].tBodies[0].rows, "btn btn-info", entry => entry.getElementsByClassName("btn-group-vertical")[0]);
+            }
+            observer.disconnect();
         }
-        observer.disconnect();
-    }
-}).observe(waiter, { attributes: true });
+    }).observe(waiter, { attributes: true });
+}
+
+function tryGetWaiter() {
+    return document.getElementById("xoct_waiter");
+}
+
+const waiter = tryGetWaiter();
+if (waiter === null) {
+    new MutationObserver((mutList, observer) => {
+        const waiter = tryGetWaiter();
+        if (waiter !== null) {
+            observeLoader(waiter);
+            observer.disconnect();
+        }
+    }).observe(document.body, { childList: true });
+} else {
+    observeLoader(waiter);
+}
