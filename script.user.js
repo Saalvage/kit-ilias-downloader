@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         KIT-ILIAS Downloader
-// @version      1.1.1
+// @version      1.1.2
 // @description  Adds a download button to videos that don't have one.
 // @author       Salvage
 // @namespace    https://github.com/Saalvage/kit-ilias-downloader
@@ -16,14 +16,12 @@
 
 'use strict';
 
-let script = document.createElement("script");
-script.textContent =
-`function __iliasDownload(playLink) {
+function __iliasDownload(playLink) {
     fetch(playLink)
         .then(response => response.text())
         .then(cnt => {
-            const pos = cnt.indexOf("https:\\\\/\\\\/oc-delivery.bibliothek.kit.edu\\\\/staticfiles\\\\/mh_default_org\\\\/api\\\\/");
-            const endPos = cnt.indexOf(\`","mimetype":"video\\\\/mp4"\`, pos);
+            const pos = cnt.indexOf("https:\\/\\/oc-delivery.bibliothek.kit.edu\\/staticfiles\\/mh_default_org\\/api\\/");
+            const endPos = cnt.indexOf(`","mimetype":"video\\/mp4"`, pos);
             // Actually download
             window.location = cnt.substr(pos, endPos - pos);
         })
@@ -31,7 +29,10 @@ script.textContent =
             console.log(err);
             alert("Download failed! See console for details!");
         });
-}`
+}
+
+let script = document.createElement("script");
+script.textContent = __iliasDownload.toString();
 document.head.appendChild(script);
 
 function addDownloads(rows, styleClass, getButtons) {
@@ -42,7 +43,7 @@ function addDownloads(rows, styleClass, getButtons) {
     }
     for (const entry of rows) {
         const buttons = getButtons(entry);
-        buttons.insertAdjacentHTML("beforeEnd", `<a class="${styleClass}" onclick=__iliasDownload("${buttons.children[0].href}");>Download</a>`);
+        buttons.insertAdjacentHTML("beforeEnd", `<a class="${styleClass}" onclick=${__iliasDownload.name}("${buttons.children[0].href}");>Download</a>`);
     }
 }
 
