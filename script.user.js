@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         KIT-ILIAS Downloader
-// @version      1.1.2
+// @version      1.1.3
 // @description  Adds a download button to videos that don't have one.
 // @author       Salvage
 // @namespace    https://github.com/Saalvage/kit-ilias-downloader
@@ -36,10 +36,13 @@ script.textContent = __iliasDownload.toString();
 document.head.appendChild(script);
 
 function addDownloads(rows, styleClass, getButtons) {
+    console.log(rows.length);
+    console.log(getButtons(rows[0]));
+
     // Check if download button is already there
     if (rows.length > 0) {
         const buttons = getButtons(rows[0]);
-        if (buttons.length === 2 && buttons[1].text === "Download") { return; }
+        if (buttons.children.length === 2 && buttons.children[1].text === "Download") { return; }
     }
     for (const entry of rows) {
         const buttons = getButtons(entry);
